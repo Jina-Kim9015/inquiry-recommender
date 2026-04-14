@@ -1,13 +1,9 @@
 import os
 import json
 from flask import Flask, render_template, request, jsonify, Response, stream_with_context
-import g4f
-from g4f.client import Client
-import g4f.Provider as Provider
+from groq import Groq
 
-g4f.debug.logging = False
 app = Flask(__name__)
-client = Client()
 
 SYSTEM_PROMPT = """당신은 대한민국 고등학교 교육과정 전문가이자 진로 탐구 지도 선생님입니다.
 학생이 관심 주제나 기사 내용을 입력하면, 2015 개정 교육과정의 고등학교 교과목과 연결하여 실제로 수행할 수 있는 탐구 주제를 추천해야 합니다.
@@ -46,10 +42,6 @@ SYSTEM_PROMPT = """당신은 대한민국 고등학교 교육과정 전문가이
 ## 💡 추가 팁
 (이 주제로 탐구를 진행할 때 유용한 팁이나 참고할 자료 유형 2-3가지)"""
 
-PROVIDER_MAP = {
-    "Groq": Provider.Groq,
-}
-
 
 @app.route("/")
 def index():
@@ -61,26 +53,27 @@ def recommend():
     data = request.get_json()
     user_input = data.get("input", "").strip()
     model_id = data.get("model", "llama-3.3-70b-versatile")
-    provider_name = data.get("provider", "Groq")
 
     if not user_input:
         return jsonify({"error": "입력 내용이 없습니다."}), 400
     if len(user_input) > 5000:
         return jsonify({"error": "입력 내용이 너무 깁니다. 5000자 이내로 입력해주세요."}), 400
 
-    provider = PROVIDER_MAP.get(provider_name, Provider.Groq)
+    api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        return jsonify({"error": "서버 설정 오류: API 키가 없습니다."}), 500
 
     def generate():
         try:
+            client = Groq(api_key=api_key)
             stream = client.chat.completions.create(
                 model=model_id,
-                provider=provider,
                 messages=[
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": f"다음 내용을 분석하고 탐구 주제를 추천해주세요:\n\n{user_input}"}
                 ],
                 stream=True,
-                timeout=60
+                max_tokens=4000,
             )
             for chunk in stream:
                 delta = chunk.choices[0].delta
