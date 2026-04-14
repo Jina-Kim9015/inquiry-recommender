@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>탐구 주제 추천 - 고등학교 교과 연계</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- 헤더 -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <span class="logo-icon">🔬</span>
+                    <div>
+                        <h1>탐구 주제 추천</h1>
+                        <p class="subtitle">관심 주제를 교과와 연결하는 AI 탐구 도우미</p>
+                    </div>
+                </div>
+                <div class="badge">고등학교 2015 개정 교육과정</div>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <!-- 안내 섹션 -->
+            <section class="guide-section">
+                <div class="guide-cards">
+                    <div class="guide-card">
+                        <span class="guide-icon">📰</span>
+                        <h3>기사 붙여넣기</h3>
+                        <p>관심 있는 뉴스 기사나 논문 내용을 그대로 붙여넣으세요</p>
+                    </div>
+                    <div class="guide-card">
+                        <span class="guide-icon">💭</span>
+                        <h3>관심 주제 입력</h3>
+                        <p>평소 궁금했던 주제나 관심 분야를 자유롭게 적어주세요</p>
+                    </div>
+                    <div class="guide-card">
+                        <span class="guide-icon">📚</span>
+                        <h3>교과 연계 추천</h3>
+                        <p>AI가 교과서와 연결된 탐구 주제를 자동으로 추천해드려요</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- AI 설정 섹션 -->
+            <section class="ai-section">
+                <div class="ai-card">
+                    <div class="ai-header">
+                        <h2 class="ai-title">AI 모델 선택</h2>
+                        <span class="free-badge">무료 · API 키 불필요</span>
+                    </div>
+                    <div class="ai-row">
+                        <div class="ai-group">
+                            <label class="ai-label" for="modelSelect">모델</label>
+                            <select id="modelSelect" class="model-select">
+                                <option value="llama-3.3-70b-versatile" data-provider="Groq">LLaMA 3.3 70B — Groq (추천)</option>
+                                <option value="llama-3.1-8b-instant" data-provider="Groq">LLaMA 3.1 8B — Groq (빠름)</option>
+                            </select>
+                        </div>
+                        <div class="ai-notice-box">
+                            <span class="notice-icon">ℹ️</span>
+                            <span>무료 공개 엔드포인트를 사용합니다. 서버 상태에 따라 응답이 느리거나 실패할 수 있습니다.</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 입력 섹션 -->
+            <section class="input-section">
+                <div class="input-card">
+                    <div class="input-header">
+                        <h2>관심 주제 또는 기사 입력</h2>
+                        <span class="char-count" id="charCount">0 / 5000</span>
+                    </div>
+
+                    <!-- 예시 버튼들 -->
+                    <div class="example-buttons" id="exampleButtons">
+                        <span class="example-label">예시 주제:</span>
+                        <div class="examples-list" id="examplesList">
+                            <button class="example-btn loading-btn" disabled>로딩 중...</button>
+                        </div>
+                    </div>
+
+                    <textarea
+                        id="userInput"
+                        class="input-textarea"
+                        placeholder="예시) 최근 기후변화로 인한 폭염이 심각해지고 있습니다. 우리나라도 여름 평균 기온이 매년 높아지고 있으며...&#10;&#10;또는 관심 있는 주제를 자유롭게 입력하세요."
+                        maxlength="5000"
+                    ></textarea>
+
+                    <div class="input-actions">
+                        <button class="clear-btn" id="clearBtn">초기화</button>
+                        <button class="submit-btn" id="submitBtn">
+                            <span class="btn-text">탐구 주제 추천받기</span>
+                            <span class="btn-icon">→</span>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 결과 섹션 -->
+            <section class="result-section" id="resultSection" style="display: none;">
+                <div class="result-card">
+                    <div class="result-header">
+                        <h2>추천 탐구 주제</h2>
+                        <div class="result-actions">
+                            <button class="copy-btn" id="copyBtn">복사하기</button>
+                            <button class="new-btn" id="newBtn">새로 추천받기</button>
+                        </div>
+                    </div>
+                    <div class="result-content" id="resultContent">
+                        <div class="loading-indicator" id="loadingIndicator">
+                            <div class="loading-dots">
+                                <span></span><span></span><span></span>
+                            </div>
+                            <p>AI가 탐구 주제를 분석하고 있습니다...</p>
+                        </div>
+                        <div class="result-text" id="resultText"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 교과 안내 -->
+            <section class="subjects-section">
+                <h2>연계 가능한 교과 분야</h2>
+                <div class="subjects-grid">
+                    <div class="subject-tag science">통합과학 / 물리학I·II / 화학I·II / 생명과학I·II / 지구과학I·II</div>
+                    <div class="subject-tag math">수학I·II / 미적분 / 확률과 통계 / 기하</div>
+                    <div class="subject-tag social">통합사회 / 사회문화 / 경제 / 정치와 법 / 세계사</div>
+                    <div class="subject-tag korean">국어 / 문학 / 독서 / 화법과 작문 / 언어와 매체</div>
+                    <div class="subject-tag tech">정보 / 기술·가정</div>
+                    <div class="subject-tag ethics">생활과 윤리 / 윤리와 사상</div>
+                    <div class="subject-tag geo">한국지리 / 세계지리 / 동아시아사 / 한국사</div>
+                    <div class="subject-tag health">체육 / 운동과 건강 / 음악 / 미술</div>
+                </div>
+            </section>
+        </main>
+
+        <footer class="footer">
+            <p>고등학교 2015 개정 교육과정 기반 AI 탐구 주제 추천 서비스</p>
+            <p class="footer-sub">Powered by g4f (gpt4free) · LLaMA via Groq</p>
+        </footer>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>
