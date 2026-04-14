@@ -1,12 +1,25 @@
 import os
 import json
+import re
 from flask import Flask, render_template, request, jsonify, Response, stream_with_context
 from groq import Groq
 
 app = Flask(__name__)
 
-SYSTEM_PROMPT = """당신은 대한민국 고등학교 교육과정 전문가이자 진로 탐구 지도 선생님입니다.
-반드시 한국어로만 답변하세요. 영어, 중국어, 일본어, 러시아어 등 다른 언어를 절대 사용하지 마세요. 한자도 사용하지 마세요.
+# 한국어/영문/숫자/기본 기호 외의 문자를 제거하는 필터
+def filter_korean(text):
+    # 허용: 한글, 영문, 숫자, 공백, 줄바꿈, 기본 문장부호, 이모지(일부)
+    return re.sub(
+        r'[^\uAC00-\uD7A3\u1100-\u11FF\u3130-\u318F'  # 한글
+        r'A-Za-z0-9 \t\n\r'                            # 영문·숫자·공백
+        r'\.\,\!\?\:\;\-\(\)\[\]\{\}\/\\\'\"\`'       # 기본 문장부호
+        r'\#\*\_\~\>\<\+\=\@\&\%\^\$'                # 마크다운·특수기호
+        r'\u2600-\u27BF\uD83C-\uDBFF\uDC00-\uDFFF'   # 이모지
+        r']', '', text)
+
+SYSTEM_PROMPT = """[중요] 모든 답변은 반드시 한국어(Korean)로만 작성하세요. 영어, 중국어, 일본어, 러시아어, 베트남어, 한자 등 한국어가 아닌 문자는 단 하나도 사용하지 마세요. 이 규칙은 어떤 경우에도 예외 없이 적용됩니다.
+
+당신은 대한민국 고등학교 교육과정 전문가이자 진로 탐구 지도 선생님입니다.
 학생이 관심 주제나 기사 내용을 입력하면, 2015 개정 교육과정의 고등학교 교과목과 연결하여 실제로 수행할 수 있는 탐구 주제를 추천해야 합니다.
 2015 개정 교육과정의 주요 고등학교 교과는 다음과 같습니다:
 - 국어 교과: 국어, 문학, 독서, 화법과 작문, 언어와 매체
@@ -53,7 +66,7 @@ def index():
 def recommend():
     data = request.get_json()
     user_input = data.get("input", "").strip()
-    model_id = data.get("model", "llama-3.3-70b-versatile")
+    model_id = "llama-3.3-70b-versatile"
 
     if not user_input:
         return jsonify({"error": "입력 내용이 없습니다."}), 400
@@ -71,7 +84,7 @@ def recommend():
                 model=model_id,
                 messages=[
                     {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": f"다음 내용을 분석하고 탐구 주제를 추천해주세요:\n\n{user_input}"}
+                    {"role": "user", "content": f"[한국어로만 답변] 다음 내용을 분석하고 탐구 주제를 추천해주세요:\n\n{user_input}"}
                 ],
                 stream=True,
                 max_tokens=4000,
@@ -79,7 +92,9 @@ def recommend():
             for chunk in stream:
                 delta = chunk.choices[0].delta
                 if delta and delta.content:
-                    yield f"data: {json.dumps({'text': delta.content})}\n\n"
+                    clean = filter_korean(delta.content)
+                    if clean:
+                        yield f"data: {json.dumps({'text': clean})}\n\n"
         except Exception as e:
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
         yield "data: [DONE]\n\n"
