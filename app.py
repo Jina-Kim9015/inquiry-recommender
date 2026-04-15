@@ -6,15 +6,45 @@ from groq import Groq
 
 app = Flask(__name__)
 
-# 한국어/영문/숫자/기본 기호 외의 문자를 제거하는 필터
+# 한국어 학술 문서에서 허용할 영어 약어/단위 목록
+ALLOWED_ENGLISH = {
+    'AI', 'IT', 'DNA', 'RNA', 'mRNA', 'GDP', 'GNP', 'CO2', 'H2O', 'pH', 'UV',
+    'IoT', 'AR', 'VR', 'MRI', 'CT', 'PC', 'SNS', 'ICT', 'STEM', 'ESG', 'NFT',
+    'COVID', 'OECD', 'UN', 'WHO', 'NASA', 'NGO', 'IMF', 'WTO', 'EU', 'US',
+    'km', 'kg', 'mg', 'ml', 'kl', 'cm', 'mm', 'nm', 'km2', 'ha',
+    'Hz', 'kHz', 'MHz', 'kW', 'MW', 'GW', 'kJ', 'kcal', 'ppm', 'ppb',
+    'Wi-Fi', 'ChatGPT', 'GPT',
+}
+
 def filter_korean(text):
-    return re.sub(
+    # 1단계: 비허용 유니코드 문자 제거 (한자, 러시아어, 베트남어 등)
+    text = re.sub(
         r'[^\uAC00-\uD7A3\u1100-\u11FF\u3130-\u318F'
         r'A-Za-z0-9 \t\n\r'
         r'\.\,\!\?\:\;\-\(\)\[\]\{\}\/\\\'\"\`'
         r'\#\*\_\~\>\<\+\=\@\&\%\^\$'
         r'\u2600-\u27BF\uD83C-\uDBFF\uDC00-\uDFFF'
         r']', '', text)
+
+    # 2단계: 한국어 문맥에 끼어든 의미없는 영어 단어 제거
+    def check_word(match):
+        word = match.group(0)
+        # 허용 목록
+        if word in ALLOWED_ENGLISH or word.upper() in ALLOWED_ENGLISH:
+            return word
+        # 모두 대문자 약어 (3글자 이하: IT, AI 등)
+        if word.isupper() and len(word) <= 6:
+            return word
+        # 대문자로 시작하는 고유명사 (영어 제목, 브랜드 등)
+        if word[0].isupper() and len(word) >= 3:
+            return word
+        # 소문자 영어 단어 — 한국어 문장에 끼어든 외국어 토큰으로 판단, 제거
+        return ''
+
+    text = re.sub(r'\b[A-Za-z][A-Za-z0-9]*\b', check_word, text)
+    # 2단계 후 남은 불필요한 공백 정리
+    text = re.sub(r' {2,}', ' ', text)
+    return text
 
 RECOMMEND_PROMPT = """[중요] 모든 답변은 반드시 한국어(Korean)로만 작성하세요. 영어, 중국어, 일본어, 러시아어, 베트남어, 한자 등 한국어가 아닌 문자는 단 하나도 사용하지 마세요.
 
@@ -103,7 +133,7 @@ def stream_response(system_prompt, user_message):
     try:
         client = Groq(api_key=api_key)
         stream = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="meta-llama/llama-4-scout-17b-16e-instruct",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user",   "content": user_message}
